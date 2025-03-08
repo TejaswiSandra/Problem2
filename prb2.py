@@ -1,22 +1,20 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Load the dataset
 @st.cache_data
 def load_data():
     return pd.read_csv("university_student_dashboard_data.csv")
 
+# Load data
 data = load_data()
 
-# Dashboard title
+# Set page title
 st.title("University Student Dashboard")
-st.markdown("""
-This dashboard tracks student admissions, retention, and satisfaction over time.
-""")
 
-# Sidebar filters
+# Sidebar for filters
 st.sidebar.header("Filters")
 selected_year = st.sidebar.selectbox("Select Year", data['Year'].unique())
 selected_term = st.sidebar.selectbox("Select Term", data['Term'].unique())
@@ -24,7 +22,7 @@ selected_term = st.sidebar.selectbox("Select Term", data['Term'].unique())
 # Filter data based on selections
 filtered_data = data[(data['Year'] == selected_year) & (data['Term'] == selected_term)]
 
-# Key Metrics
+# Display KPIs
 st.header("Key Metrics")
 col1, col2, col3 = st.columns(3)
 with col1:
@@ -36,36 +34,65 @@ with col3:
 
 # Retention Rate Trends
 st.header("Retention Rate Trends Over Time")
-retention_fig = px.line(data, x='Year', y='Retention Rate (%)', color='Term',
-                        title="Retention Rate Over Time")
-st.plotly_chart(retention_fig)
+retention_data = data.groupby(['Year', 'Term'])['Retention Rate (%)'].mean().reset_index()
+plt.figure(figsize=(10, 6))
+sns.lineplot(data=retention_data, x='Year', y='Retention Rate (%)', hue='Term', marker='o')
+plt.title("Retention Rate Trends Over Time")
+plt.xlabel("Year")
+plt.ylabel("Retention Rate (%)")
+st.pyplot(plt)
 
 # Student Satisfaction Trends
 st.header("Student Satisfaction Trends Over Time")
-satisfaction_fig = px.line(data, x='Year', y='Student Satisfaction (%)', color='Term',
-                           title="Student Satisfaction Over Time")
-st.plotly_chart(satisfaction_fig)
+satisfaction_data = data.groupby(['Year', 'Term'])['Student Satisfaction (%)'].mean().reset_index()
+plt.figure(figsize=(10, 6))
+sns.lineplot(data=satisfaction_data, x='Year', y='Student Satisfaction (%)', hue='Term', marker='o')
+plt.title("Student Satisfaction Trends Over Time")
+plt.xlabel("Year")
+plt.ylabel("Student Satisfaction (%)")
+st.pyplot(plt)
 
 # Enrollment Breakdown by Department
 st.header("Enrollment Breakdown by Department")
-enrollment_fig = px.bar(filtered_data, x='Term', y=['Engineering Enrolled', 'Business Enrolled', 'Arts Enrolled', 'Science Enrolled'],
-                        title="Enrollment by Department")
-st.plotly_chart(enrollment_fig)
+enrollment_data = filtered_data[['Engineering Enrolled', 'Business Enrolled', 'Arts Enrolled', 'Science Enrolled']].melt()
+plt.figure(figsize=(10, 6))
+sns.barplot(data=enrollment_data, x='variable', y='value')
+plt.title("Enrollment Breakdown by Department")
+plt.xlabel("Department")
+plt.ylabel("Number of Students")
+st.pyplot(plt)
 
 # Comparison Between Spring and Fall Terms
-st.header("Spring vs. Fall Term Comparison")
-comparison_fig = go.Figure()
-for term in data['Term'].unique():
-    term_data = data[data['Term'] == term]
-    comparison_fig.add_trace(go.Scatter(x=term_data['Year'], y=term_data['Enrolled'], mode='lines', name=term))
-comparison_fig.update_layout(title="Enrollment Trends: Spring vs. Fall", xaxis_title="Year", yaxis_title="Enrollments")
-st.plotly_chart(comparison_fig)
+st.header("Spring vs Fall Term Trends")
+term_comparison = data.groupby('Term').agg({
+    'Applications': 'mean',
+    'Admitted': 'mean',
+    'Enrolled': 'mean',
+    'Retention Rate (%)': 'mean',
+    'Student Satisfaction (%)': 'mean'
+}).reset_index()
+st.write(term_comparison)
+
+# Department-wise Comparison
+st.header("Department-wise Comparison")
+department_data = data.groupby('Year').agg({
+    'Engineering Enrolled': 'sum',
+    'Business Enrolled': 'sum',
+    'Arts Enrolled': 'sum',
+    'Science Enrolled': 'sum'
+}).reset_index()
+plt.figure(figsize=(10, 6))
+sns.lineplot(data=department_data.melt(id_vars='Year'), x='Year', y='value', hue='variable', marker='o')
+plt.title("Department-wise Enrollment Trends Over Time")
+plt.xlabel("Year")
+plt.ylabel("Number of Students")
+st.pyplot(plt)
 
 # Key Findings and Insights
 st.header("Key Findings and Insights")
-st.markdown("""
-- **Retention Rates** have steadily increased over the years, with Fall terms consistently performing slightly better than Spring terms.
-- **Student Satisfaction** has also shown a positive trend, indicating improved student experiences.
-- **Engineering** remains the most popular department, followed by Business, Arts, and Science.
-- **Fall terms** generally see higher enrollments compared to Spring terms.
+st.write("""
+1. **Retention Rates**: Retention rates have shown a steady increase over the years, with Fall terms consistently performing slightly better than Spring terms.
+2. **Student Satisfaction**: Student satisfaction scores have also improved, indicating a positive trend in student experience.
+3. **Department Enrollment**: Engineering and Business departments have seen the highest enrollment, while Science and Arts have remained relatively stable.
+4. **Spring vs Fall**: Fall terms generally have higher applications, admissions, and enrollments compared to Spring terms.
 """)
